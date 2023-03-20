@@ -103,6 +103,7 @@ StableDiffusionTxt2ImgProcessingAPI = PydanticModelGenerator(
     [
         {"key": "sampler_index", "type": str, "default": "Euler"},
         {"key": "script_name", "type": str, "default": None},
+        {"key": "img_idx", "type": int, "default": None},
         {"key": "script_args", "type": list, "default": []},
         {"key": "send_images", "type": bool, "default": True},
         {"key": "save_images", "type": bool, "default": False},
@@ -131,6 +132,9 @@ class TextToImageResponse(BaseModel):
     images: List[str] = Field(default=None, title="Image", description="The generated image in base64 format.")
     parameters: dict
     info: str
+
+class TextToImageResponseget(BaseModel):
+    parameters: dict
 
 class ImageToImageResponse(BaseModel):
     images: List[str] = Field(default=None, title="Image", description="The generated image in base64 format.")
