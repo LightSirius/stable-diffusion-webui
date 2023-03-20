@@ -124,6 +124,8 @@ class Api:
         self.queue_lock = queue_lock
         api_middleware(self.app)
         self.add_api_route("/sdapi/v1/txt2img", self.text2imgapi, methods=["POST"], response_model=TextToImageResponse)
+        self.add_api_route("/sdapi/v1/txt2imgget", self.text2imgget, methods=["POST"], response_model=TextToImageResponseget)
+        self.add_api_route("/sdapi/v1/txt2imgrun", self.text2imgrun, methods=["POST"])
         self.add_api_route("/sdapi/v1/img2img", self.img2imgapi, methods=["POST"], response_model=ImageToImageResponse)
         self.add_api_route("/sdapi/v1/extra-single-image", self.extras_single_image_api, methods=["POST"], response_model=ExtrasSingleImageResponse)
         self.add_api_route("/sdapi/v1/extra-batch-images", self.extras_batch_images_api, methods=["POST"], response_model=ExtrasBatchImagesResponse)
@@ -240,6 +242,8 @@ class Api:
         send_images = args.pop('send_images', True)
         args.pop('save_images', None)
 
+        img_idx = args.pop('img_idx', None)
+
         with self.queue_lock:
             p = StableDiffusionProcessingTxt2Img(sd_model=shared.sd_model, **args)
             p.scripts = script_runner
@@ -257,7 +261,77 @@ class Api:
 
         b64images = list(map(encode_pil_to_base64, processed.images)) if send_images else []
 
+        try:
+            file_content=base64.b64decode(b64images[0])
+            with open("./testpath/"+ str(img_idx) +".png", "wb") as f:
+                f.write(file_content)
+                f.close()
+        except Exception as e:
+            print(str(e))
+
         return TextToImageResponse(images=b64images, parameters=vars(txt2imgreq), info=processed.js())
+
+    def text2imgget(self, txt2imgreq: StableDiffusionTxt2ImgProcessingAPI):
+        import os
+        os.system('curl --header "Content-Type: application/json" \
+                  --request POST \
+                  --data \'{	"prompt": "'+txt2imgreq.prompt+'", "send_images": true, "steps": '+str(txt2imgreq.steps)+', "cfg_scale": "10.0","img_idx": '+str(txt2imgreq.img_idx)+'}\' \
+                  http://localhost:7865/sdapi/v1/txt2imgrun &')
+        return TextToImageResponseget(parameters=vars(txt2imgreq))
+
+    def text2imgrun(self, txt2imgreq: StableDiffusionTxt2ImgProcessingAPI):
+        script_runner = scripts.scripts_txt2img
+        if not script_runner.scripts:
+            script_runner.initialize_scripts(False)
+            ui.create_ui()
+        selectable_scripts, selectable_script_idx = self.get_selectable_script(txt2imgreq.script_name, script_runner)
+
+        populate = txt2imgreq.copy(update={  # Override __init__ params
+            "sampler_name": validate_sampler_name(txt2imgreq.sampler_name or txt2imgreq.sampler_index),
+            "do_not_save_samples": not txt2imgreq.save_images,
+            "do_not_save_grid": not txt2imgreq.save_images,
+        })
+        if populate.sampler_name:
+            populate.sampler_index = None  # prevent a warning later on
+
+        args = vars(populate)
+        args.pop('script_name', None)
+        args.pop('script_args', None) # will refeed them to the pipeline directly after initializing them
+        args.pop('alwayson_scripts', None)
+
+        script_args = self.init_script_args(txt2imgreq, selectable_scripts, selectable_script_idx, script_runner)
+
+        send_images = args.pop('send_images', True)
+        args.pop('save_images', None)
+
+        img_idx = args.pop('img_idx', None)
+
+        with self.queue_lock:
+            p = StableDiffusionProcessingTxt2Img(sd_model=shared.sd_model, **args)
+            p.scripts = script_runner
+            p.outpath_grids = opts.outdir_txt2img_grids
+            p.outpath_samples = opts.outdir_txt2img_samples
+
+            shared.state.begin()
+            if selectable_scripts != None:
+                p.script_args = script_args
+                processed = scripts.scripts_txt2img.run(p, *p.script_args) # Need to pass args as list here
+            else:
+                p.script_args = tuple(script_args) # Need to pass args as tuple here
+                processed = process_images(p)
+            shared.state.end()
+
+        b64images = list(map(encode_pil_to_base64, processed.images)) if send_images else []
+
+        try:
+            file_content=base64.b64decode(b64images[0])
+            with open("./testpath/"+ str(img_idx) +".png", "wb") as f:
+                f.write(file_content)
+                f.close()
+        except Exception as e:
+            print(str(e))
+
+        return
 
     def img2imgapi(self, img2imgreq: StableDiffusionImg2ImgProcessingAPI):
         init_images = img2imgreq.init_images
