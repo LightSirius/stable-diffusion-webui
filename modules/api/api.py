@@ -331,7 +331,7 @@ class Api:
         except Exception as e:
             print(str(e))
 
-        return
+        return img_idx
 
     def img2imgapi(self, img2imgreq: StableDiffusionImg2ImgProcessingAPI):
         init_images = img2imgreq.init_images
