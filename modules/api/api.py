@@ -325,7 +325,7 @@ class Api:
 
         try:
             file_content=base64.b64decode(b64images[0])
-            with open("./testpath/"+ str(img_idx) +".png", "wb") as f:
+            with open("./ai-img/"+ str(img_idx) +".png", "wb") as f:
                 f.write(file_content)
                 f.close()
         except Exception as e:
