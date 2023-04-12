@@ -3,7 +3,7 @@ import io
 import time
 import datetime
 import uvicorn
-import requests
+# import requests
 from threading import Lock
 from io import BytesIO
 from gradio.processing_utils import decode_base64_to_file
@@ -336,7 +336,7 @@ class Api:
         post_url = '218.155.46.194:3000/ai-image/test2'
         post_data = {'img_idx': img_idx}
 
-        post_request = requests.post(post_url, json = post_data)
+        # post_request = requests.post(post_url, json = post_data)
 
         return img_idx
 
