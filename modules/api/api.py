@@ -333,7 +333,7 @@ class Api:
             print(str(e))
 
         # Request Image Create Done
-        post_url = '218.155.46.194:3000/ai-image/test2'
+        post_url = 'http://218.155.46.194:3000/ai-image/test2'
         post_data = {'img_idx': img_idx}
 
         post_request = requests.post(post_url, json = post_data)
